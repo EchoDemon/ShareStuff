@@ -179,7 +179,7 @@ namespace ShareStuff
                         saveFilename = sfd.FileName;
                     }
                     int totalRecievedBytes = 0;
-                    byte[] RecData = new byte[1024];
+                    byte[] RecData = new byte[(1024 * 1024)];
                     int RecBytes;
                     lblChatRecieved.Dispatcher.Invoke(() =>
                     {
@@ -234,6 +234,7 @@ namespace ShareStuff
                 {
                     IProgress<double> pro = prog;
                     byte[] sendingBuffer = null;
+                    int bufferSize = 1024 * 1024;
                     using (TcpClient client = new TcpClient(targetIP, targetPort))
                     {
                         using (NetworkStream netStream = client.GetStream())
@@ -252,9 +253,9 @@ namespace ShareStuff
                                 startTime = DateTime.Now;
                                 for (int i = 0; i < numberOfPackets; i++)
                                 {
-                                    if (totalLength >= 1024)
+                                    if (totalLength >= bufferSize)
                                     {
-                                        currentPacketLength = 1024;
+                                        currentPacketLength = bufferSize;
                                         totalLength = totalLength - currentPacketLength;
                                     }
                                     else

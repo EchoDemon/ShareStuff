@@ -75,7 +75,7 @@ namespace ShareStuff
                             lblChatRecieved.Text += "Last Message Not Recieved!";
                         });
                     }
-                    client.Close();                    
+                    client.Close();
                 }
             });
             txtChatSend.Dispatcher.Invoke(() =>
@@ -86,30 +86,41 @@ namespace ShareStuff
             });
             return true;
         }
-        
+
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
                 try
-                {                    
-                    var discoverer = new NatDiscoverer();
-                    var cts = new CancellationTokenSource(10000);
-                    var device = await discoverer.DiscoverDeviceAsync(PortMapper.Upnp, cts);
-                    var externTest = await device.GetExternalIPAsync();
-                    await device.DeletePortMapAsync(new Mapping(Protocol.Tcp, myPort, myPort, "ShareStuffChat"));
-                    await device.DeletePortMapAsync(new Mapping(Protocol.Tcp, (myPort + 1), (myPort + 1), "ShareStuffFile"));
-                    await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, myPort, myPort, "ShareStuffChat"));
-                    await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, (myPort + 1), (myPort + 1), "ShareStuffFile"));
-                    string foo = externTest.ToString();
-                    lblMyIPAndPort.Text = "Your IP Is: " + foo + "  Your Port Is: " + myPort;
+                {
+                    //var discoverer = new NatDiscoverer();
+                    //var cts = new CancellationTokenSource(10000);
+                    //var device = await discoverer.DiscoverDeviceAsync(PortMapper.Upnp, cts);
+                    //var externTest = await device.GetExternalIPAsync();
+                    //await device.DeletePortMapAsync(new Mapping(Protocol.Tcp, myPort, myPort, "ShareStuffChat"));
+                    //await device.DeletePortMapAsync(new Mapping(Protocol.Tcp, (myPort + 1), (myPort + 1), "ShareStuffFile"));
+                    //await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, myPort, myPort, "ShareStuffChat"));
+                    //await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, (myPort + 1), (myPort + 1), "ShareStuffFile"));
+                    //string foo = externTest.ToString();
+                    //lblMyIPAndPort.Text = "Your IP Is: " + foo + "  Your Port Is: " + myPort;
                 }
                 catch (Exception)
                 {
                     lblMyIPAndPort.Text = "Could Not Auto Configure or Get IP";
                 }
+                Progress<string> progStatusBar = new Progress<string>();
+                progStatusBar.ProgressChanged += (a, b) =>
+                {
+                    lblStatus.Text = b;
+                };
+                Progress<double> progUpdateBar = new Progress<double>();
+                progUpdateBar.ProgressChanged += (a, b) =>
+                {
+                    progBar.Value = b;
+                };
+
                 Task.Factory.StartNew(() => Listen());
-                Task.Factory.StartNew(() => Listen2());
+                Task.Factory.StartNew(() => Listen2(progStatusBar, progUpdateBar));
             }
             catch (Exception ex)
             {
@@ -125,12 +136,12 @@ namespace ShareStuff
                 return publicIPAddress.Replace("\n", "");
             }
         }
-        
+
         private void Listen()
         {
             string message = "";
             var listener = new TcpListener(myPort);
-            listener.Start();            
+            listener.Start();
             do
             {
                 using (TcpClient client = listener.AcceptTcpClient())
@@ -141,63 +152,61 @@ namespace ShareStuff
                     }
                     client.Close();
                 }
-                
+
                 Regex reg = new Regex(@".+\*(?<name>.+?=*)\*(?<size>.+)\*");
                 if (reg.IsMatch(message))
-                {                                       
+                {
                     string fileName = reg.Match(message).Groups["name"].Value;
                     double fileSize = double.Parse(reg.Match(message).Groups["size"].Value);
                     incomingFileName = fileName;
                     incomingFileSize = fileSize;
                 }
-                lblChatRecieved.Dispatcher.Invoke(() => 
-                { 
-                    lblChatRecieved.Text += "[Them - " + DateTime.Now.ToShortTimeString() + "] - " + message; 
-                    chatScrollViewer.ScrollToBottom(); 
+                lblChatRecieved.Dispatcher.Invoke(() =>
+                {
+                    lblChatRecieved.Text += "[Them - " + DateTime.Now.ToShortTimeString() + "] - " + message;
+                    chatScrollViewer.ScrollToBottom();
                 });
             } while (keepGoing);
         }
 
-        private void Listen2()
+        private void Listen2(Progress<string> progStatusBar, Progress<double> progUpdateBar)
         {
             var listener = new TcpListener((myPort + 1));
             listener.Start();
+            IProgress<string> proUpdateStatus = progStatusBar;
+            IProgress<double> proUpdateBar = progUpdateBar;
             do
             {
                 TcpClient client = listener.AcceptTcpClient();
                 using (var netStream = client.GetStream())
                 {
                     Thread.Sleep(60);
-                    SaveFileDialog sfd = new SaveFileDialog();                   
+                    SaveFileDialog sfd = new SaveFileDialog();
                     sfd.RestoreDirectory = true;
                     sfd.FileName = incomingFileName;
                     sfd.Title = "Where do you want to save the file?";
                     sfd.ShowDialog();
                     string saveFilename = sfd.FileName;
-                    
                     long totalRecievedBytes = 0;
-                    byte[] RecData = new byte[(1024 * 2)];
-                    int RecBytes;
+                    byte[] recBuffer = new byte[81920];
+                    int recievedBytes;
+                    startTime = DateTime.Now;
                     lblChatRecieved.Dispatcher.Invoke(() =>
                     {
-                        lblStatus.Text = "Downloading File...";
+                        progBar.Maximum = (incomingFileSize + 1);
                     });
-                    startTime = DateTime.Now;
                     using (FileStream fs = new FileStream(saveFilename, FileMode.Create, FileAccess.Write))
                     {
-                        while ((RecBytes = netStream.Read(RecData, 0, RecData.Length)) > 0)
+                        //CopyStream(netStream, fs, prog2, prog);
+                        while ((recievedBytes = netStream.Read(recBuffer, 0, recBuffer.Length)) != 0)
                         {
-                            fs.Write(RecData, 0, RecBytes);
-                            totalRecievedBytes += RecBytes;
-                            lblChatRecieved.Dispatcher.Invoke(() =>
-                            {
-                                progBar.Maximum = (incomingFileSize + 1);
-                                progBar.Value = totalRecievedBytes;
-                                int totalSeconds = (int)(startTime - DateTime.Now).TotalSeconds;
-                                long itemsPerSecond = totalRecievedBytes / (totalSeconds == 0 ? 1 : totalSeconds);
-                                long secondsRemaining = ((int)incomingFileSize - totalRecievedBytes) / (itemsPerSecond == 0 ? 1 : itemsPerSecond);
-                                lblStatus.Text = "Downloading, " + FormatDurationSeconds(secondsRemaining) + " remaining";
-                            });
+                            fs.Write(recBuffer, 0, recievedBytes);
+                            totalRecievedBytes += recievedBytes;
+                            proUpdateBar.Report(totalRecievedBytes);
+                            long totalSeconds = (long)(DateTime.Now - startTime).TotalSeconds;
+                            long itemsPerSecond = totalRecievedBytes / (totalSeconds == 0 ? 1 : totalSeconds);
+                            long secondsRemaining = ((long)incomingFileSize - totalRecievedBytes) / (itemsPerSecond == 0 ? 1 : itemsPerSecond);
+                            proUpdateStatus.Report("Processing at " + (itemsPerSecond / 1024) + " KB/s - Remaining Time: " + FormatDurationSeconds(secondsRemaining));
                         }
                     }
                 }
@@ -223,21 +232,27 @@ namespace ShareStuff
                     return;
                 int targetPort = (int.Parse(txtTargetPort.Text) + 1);
                 string targetIP = txtTargetIP.Text;
-                
+
+                Progress<string> prog2 = new Progress<string>();
+                prog2.ProgressChanged += (a, b) => { lblStatus.Text = b; };
+
                 Progress<double> prog = new Progress<double>();
                 prog.ProgressChanged += (a, b) => { progBar.Value = b; };
                 btnSendFile.IsEnabled = false;
+
                 Task.Factory.StartNew(() =>
                 {
                     IProgress<double> pro = prog;
+                    IProgress<string> pro2 = prog2;
                     byte[] sendingBuffer = null;
-                    int bufferSize = (1024 * 2);
+                    int bufferSize = 81920;
                     using (TcpClient client = new TcpClient(targetIP, targetPort))
                     {
                         using (NetworkStream netStream = client.GetStream())
                         {
                             using (FileStream fs = new FileStream(fileToSend, FileMode.Open, FileAccess.Read))
                             {
+                                //CopyStream(fs, netStream, prog2, prog);
                                 int numberOfPackets = Convert.ToInt32((Math.Ceiling(Convert.ToDouble(fs.Length) / Convert.ToDouble(bufferSize))));
                                 lblChatRecieved.Dispatcher.Invoke(() =>
                                 {
@@ -264,13 +279,10 @@ namespace ShareStuff
                                     netStream.Write(sendingBuffer, 0, sendingBuffer.Length);
                                     counter++;
                                     pro.Report(counter);
-                                    int totalSeconds = (int)(startTime - DateTime.Now).TotalSeconds;
-                                    int itemsPerSecond = (int)counter / (totalSeconds == 0 ? 1 : totalSeconds);
-                                    int secondsRemaining = (numberOfPackets - (int)counter) / (itemsPerSecond == 0 ? 1 : itemsPerSecond);
-                                    lblChatRecieved.Dispatcher.Invoke(() =>
-                                    {
-                                        lblStatus.Text = "Uploading, " + FormatDurationSeconds(secondsRemaining) + " remaining";
-                                    });
+                                    long totalSeconds = (long)(DateTime.Now - startTime).TotalSeconds;
+                                    long itemsPerSecond = (int)counter / (totalSeconds == 0 ? 1 : totalSeconds);
+                                    long secondsRemaining = (numberOfPackets - (int)counter) / (itemsPerSecond == 0 ? 1 : itemsPerSecond);
+                                    pro2.Report("Processing at " + ((itemsPerSecond * bufferSize) / 1024) + " KB/s - Remaining Time: " + FormatDurationSeconds(secondsRemaining));
                                 }
                             }
                         }
@@ -280,9 +292,9 @@ namespace ShareStuff
                     lblStatus.Text = "Transfer complete.";
                     btnSendFile.IsEnabled = true;
                 }, TaskScheduler.FromCurrentSynchronizationContext());
-            }          
+            }
         }
-
+        
         private void txtChatSend_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key != System.Windows.Input.Key.Enter)
@@ -296,7 +308,7 @@ namespace ShareStuff
         public static string FormatDurationSeconds(long seconds)
         {
             var duration = TimeSpan.FromSeconds(seconds);
-            string result = "";            
+            string result = "";
             result += String.Format("{0:%m} min, {0:%s} sec", duration);
             return result;
         }

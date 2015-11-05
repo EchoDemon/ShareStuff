@@ -93,16 +93,16 @@ namespace ShareStuff
             {
                 try
                 {
-                    //var discoverer = new NatDiscoverer();
-                    //var cts = new CancellationTokenSource(10000);
-                    //var device = await discoverer.DiscoverDeviceAsync(PortMapper.Upnp, cts);
-                    //var externTest = await device.GetExternalIPAsync();
-                    //await device.DeletePortMapAsync(new Mapping(Protocol.Tcp, myPort, myPort, "ShareStuffChat"));
-                    //await device.DeletePortMapAsync(new Mapping(Protocol.Tcp, (myPort + 1), (myPort + 1), "ShareStuffFile"));
-                    //await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, myPort, myPort, "ShareStuffChat"));
-                    //await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, (myPort + 1), (myPort + 1), "ShareStuffFile"));
-                    //string foo = externTest.ToString();
-                    //lblMyIPAndPort.Text = "Your IP Is: " + foo + "  Your Port Is: " + myPort;
+                    var discoverer = new NatDiscoverer();
+                    var cts = new CancellationTokenSource(10000);
+                    var device = await discoverer.DiscoverDeviceAsync(PortMapper.Upnp, cts);
+                    var externTest = await device.GetExternalIPAsync();
+                    await device.DeletePortMapAsync(new Mapping(Protocol.Tcp, myPort, myPort, "ShareStuffChat"));
+                    await device.DeletePortMapAsync(new Mapping(Protocol.Tcp, (myPort + 1), (myPort + 1), "ShareStuffFile"));
+                    await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, myPort, myPort, "ShareStuffChat"));
+                    await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, (myPort + 1), (myPort + 1), "ShareStuffFile"));
+                    string foo = externTest.ToString();
+                    lblMyIPAndPort.Text = "Your IP Is: " + foo + "  Your Port Is: " + myPort;
                 }
                 catch (Exception)
                 {

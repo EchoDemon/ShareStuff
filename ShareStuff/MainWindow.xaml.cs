@@ -173,13 +173,10 @@ namespace ShareStuff
                     sfd.FileName = incomingFileName;
                     sfd.Title = "Where do you want to save the file?";
                     sfd.ShowDialog();
-                    string saveFilename = @"c:\movie.mp4";
-                    if (sfd.FileName.Length > 0)
-                    {
-                        saveFilename = sfd.FileName;
-                    }
-                    int totalRecievedBytes = 0;
-                    byte[] RecData = new byte[(1024 * 1024)];
+                    string saveFilename = sfd.FileName;
+                    
+                    long totalRecievedBytes = 0;
+                    byte[] RecData = new byte[(1024 * 2)];
                     int RecBytes;
                     lblChatRecieved.Dispatcher.Invoke(() =>
                     {
@@ -197,8 +194,8 @@ namespace ShareStuff
                                 progBar.Maximum = (incomingFileSize + 1);
                                 progBar.Value = totalRecievedBytes;
                                 int totalSeconds = (int)(startTime - DateTime.Now).TotalSeconds;
-                                int itemsPerSecond = totalRecievedBytes / (totalSeconds == 0 ? 1 : totalSeconds);
-                                int secondsRemaining = ((int)incomingFileSize - totalRecievedBytes) / (itemsPerSecond == 0 ? 1 : itemsPerSecond);
+                                long itemsPerSecond = totalRecievedBytes / (totalSeconds == 0 ? 1 : totalSeconds);
+                                long secondsRemaining = ((int)incomingFileSize - totalRecievedBytes) / (itemsPerSecond == 0 ? 1 : itemsPerSecond);
                                 lblStatus.Text = "Downloading, " + FormatDurationSeconds(secondsRemaining) + " remaining";
                             });
                         }
@@ -234,20 +231,20 @@ namespace ShareStuff
                 {
                     IProgress<double> pro = prog;
                     byte[] sendingBuffer = null;
-                    int bufferSize = 1024 * 1024;
+                    int bufferSize = (1024 * 2);
                     using (TcpClient client = new TcpClient(targetIP, targetPort))
                     {
                         using (NetworkStream netStream = client.GetStream())
                         {
                             using (FileStream fs = new FileStream(fileToSend, FileMode.Open, FileAccess.Read))
                             {
-                                int numberOfPackets = Convert.ToInt32((Math.Ceiling(Convert.ToDouble(fs.Length) / Convert.ToDouble(1024))));
+                                int numberOfPackets = Convert.ToInt32((Math.Ceiling(Convert.ToDouble(fs.Length) / Convert.ToDouble(bufferSize))));
                                 lblChatRecieved.Dispatcher.Invoke(() =>
                                 {
                                     progBar.Value = 0;
                                     progBar.Maximum = (numberOfPackets + 3);
                                 });
-                                int totalLength = (int)fs.Length;
+                                long totalLength = fs.Length;
                                 int currentPacketLength;
                                 double counter = 0;
                                 startTime = DateTime.Now;
@@ -260,7 +257,7 @@ namespace ShareStuff
                                     }
                                     else
                                     {
-                                        currentPacketLength = totalLength;
+                                        currentPacketLength = (int)totalLength;
                                     }
                                     sendingBuffer = new byte[currentPacketLength];
                                     fs.Read(sendingBuffer, 0, currentPacketLength);
@@ -296,7 +293,7 @@ namespace ShareStuff
             SendChatMessage(txtChatSend.Text);
         }
 
-        public static string FormatDurationSeconds(int seconds)
+        public static string FormatDurationSeconds(long seconds)
         {
             var duration = TimeSpan.FromSeconds(seconds);
             string result = "";            

@@ -79,8 +79,9 @@
     <ApplicationIcon>Images\black_cat.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Open.Nat">
-      <HintPath>..\packages\Open.NAT.2.0.13.0\lib\net45\Open.Nat.dll</HintPath>
+    <Reference Include="Open.Nat, Version=2.0.15.0, Culture=neutral, PublicKeyToken=f22a6a4582336c76, processorArchitecture=MSIL">
+      <HintPath>..\packages\Open.NAT.2.0.15.0\lib\net45\Open.Nat.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
